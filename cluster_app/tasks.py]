@@ -1,0 +1,8 @@
+from celery.decorators import task 
+from linear_sparc import fullrecursionpipeline, mediary
+from sparc import pipeline 
+
+@task(name = "pipeline_driver")
+def pipeline_driver(): 
+	
+

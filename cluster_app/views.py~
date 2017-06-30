@@ -1,0 +1,123 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+from django.http import HttpResponse
+from django.shortcuts import render
+from random import randint
+import subprocess
+from collections import defaultdict
+import gevent.monkey
+#gevent.monkey.patch_all()
+import gevent
+from multiprocessing import Pool
+import multiprocessing.pool
+
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+#from driver import fullrecursionpipeline
+from pipeline import pipeline
+#from driver import mediary
+
+from linearsparc import fullrecursionpipeline, mediary 
+from multiprocessing import Pool, freeze_support, Manager
+
+# Create your views here.
+
+def index(request):
+	response = render(request, "cluster_app/intro_form.html")
+
+	var = subprocess.Popen("nproc", stdout = subprocess.PIPE)
+	nproc = var.stdout.read() # number of cores on machine
+#	pool = gevent.pool.Pool(int(nproc))
+
+	if(request.method == "POST"):
+		#num = randint(100000,999999)
+		num = 99999
+		#sess = request.session.session_key
+		#request.session["ID"] = num
+		uploaded_file = request.FILES['my_file']
+		uploaded_name = request.FILES["my_file"].name
+		uploaded_name = uploaded_name.strip(".fastq")
+		samplefilename = uploaded_name + ".fastq"
+
+		with open(samplefilename , "wb+") as samplefile: # add the plus so that it will create the file if it does not exist
+			# get the session ID and append that to sampleID.txt file name so that it is a different file for every user and the same file does not get overwritten
+			for chunk in uploaded_file.chunks():
+				samplefile.write(chunk)
+
+		reference_file = request.FILES["reference_file"]
+		uploaded_reference = request.FILES["reference_file"].name
+		#uploaded_reference = uploaded_reference.strip("fasta")
+		referencefilename= uploaded_reference
+
+		with open(referencefilename, "wb+") as  referencefile :
+			for chunk in reference_file.chunks():
+				referencefile.write(chunk)
+
+		ranking_method = request.POST["rank"]
+		print ranking_method
+
+
+		#fullrecursionpipeline(filename, reference, ranking, startingindex, endingindex, percentagethresh, pvalthresh, read2thresh, snpthresh, False, pool)
+		startingindex = request.POST["start"]
+		endingindex = request.POST["end"]
+
+		if startingindex == None:
+			startingindex = 0
+
+		percentagethresh = request.POST["perc"]
+		pvalthresh = request.POST["pval"]
+		read2thresh = request.POST["read2"]
+		snpthresh = request.POST.get("snp")
+
+		print "THIS IS THE FIRST VALUE OF SNPTHRESH" + str(snpthresh)
+
+		if percentagethresh == None:
+			percentagethresh = 1.0
+		if pvalthresh == None:
+			pvalthresh = .001
+		if read2thresh == None:
+			read2thresh = 10
+		if snpthresh == None:
+			snpthresh = 10
+		snpthresh = 10 
+		print "I AM SETTING SNP THRESH TO " + str(snpthresh)
+
+
+		print "THIS IS MAIN FUNCTION"
+
+
+		manager = Manager()
+                freeze_support()
+        	passed_dictionary = manager.dict()
+		consensus_string = uploaded_name+ "_Quasi_strains.fasta"
+		finalconsensus_string = uploaded_name + "_final" + "_Quasi_strains.fasta"
+
+		clearing_string = open((uploaded_name + "_Quasi_strains.fasta"), "w")
+		clearing_string.close()
+
+		clearing_consensusstring = open(finalconsensus_string, "w")
+		clearing_consensusstring.close()
+
+		headings_string = uploaded_name + "_leaves"
+		finalheadings_string = uploaded_name + "_final" + "_leaves"
+
+		clearing_headingsstring = open(headings_string, "w")
+		clearing_headingsstring.close()
+
+		consensus_output = open(finalconsensus_string, "a+")
+		headings_output = open(finalheadings_string, "w+")
+
+		consensus_dict = defaultdict(str)
+
+		fullrecursionpipeline(samplefilename, referencefilename, ranking_method, startingindex, endingindex, percentagethresh, pvalthresh, read2thresh, snpthresh, passed_dictionary, False, consensus_output, consensus_string,
+		headings_string, finalheadings_string, finalconsensus_string, consensus_dict, headings_output)
+		#pool.join()
+
+
+	return response
+
+def test(request):
+	return HttpResponse("THIS WORKED")
+
+
+
+	#	ref_file = request.FILES['reference_file']
